@@ -71,18 +71,18 @@ export default function VitalSignsMonitor() {
   }, [vitalSigns.bpm, soundEnabled, fingerDetected]);
 
   // Función para procesar frames de video continuamente
-  const processVideoFrame = useCallback(async (frame: any) => {
-    if (!isMonitoring || !frame) return;
+  const processVideoFrame = useCallback(async () => {
+    if (!isMonitoring) return;
 
     try {
-      // En expo-camera, el frame de video no tiene un método directo para convertir a base64
-      // Usamos una técnica alternativa para capturar el frame actual
+      // Usar takePictureAsync con configuración optimizada para video
       if (cameraRef.current) {
         const photo = await cameraRef.current.takePictureAsync({
           quality: 0.1,
           base64: true,
           skipProcessing: true,
           isImageMirror: false,
+          fastMode: true, // Modo rápido para captura continua
         });
 
         if (photo && photo.base64) {
@@ -119,15 +119,15 @@ export default function VitalSignsMonitor() {
   }, [disclaimerAccepted]);
 
   const startMonitoringProcess = useCallback(() => {
-    (resetProcessor as () => void)();
-    (startSession as () => void)();
+    resetProcessor();
+    startSession();
     setIsMonitoring(true);
     // Iniciar captura continua de frames
     const captureLoop = async () => {
       if (isMonitoring && cameraRef.current) {
-        await processVideoFrame({});
-        // Programar siguiente captura (30 FPS)
-        setTimeout(captureLoop, 33);
+        await processVideoFrame();
+        // Programar siguiente captura (20 FPS para mejor rendimiento)
+        setTimeout(captureLoop, 50);
       }
     };
     captureLoop();
@@ -215,14 +215,7 @@ export default function VitalSignsMonitor() {
         flash={flashEnabled ? "on" : "off"}
         enableTorch={flashEnabled}
         mode="video" // Importante: establecer modo video para captura continua
-        onFrameProcessed={isMonitoring ? async (frame: any) => {
-          try {
-            // Procesar frames del video de manera continua
-            await processVideoFrame(frame);
-          } catch (error) {
-            console.error('Frame processing error:', error);
-          }
-        } : undefined}
+        // onFrameProcessed no es confiable en expo-camera, usamos nuestro propio bucle
       >
         {/* PPG Monitor - Full Screen Background */}
         <PPGMonitor

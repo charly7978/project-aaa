@@ -2,7 +2,7 @@ export class ArrhythmiaDetector {
   private rrHistory: number[] = [];
   private lastBeatTime: number = 0;
   
-  detectArrhythmia(timestamp: number, bpm: number, rrInterval: number): boolean {
+  public detectArrhythmia(timestamp: number, bpm: number, rrInterval: number): boolean {
     if (rrInterval <= 0) return false;
     
     this.rrHistory.push(rrInterval);
@@ -61,7 +61,7 @@ export class ArrhythmiaDetector {
     return squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
   }
   
-  getArrhythmiaType(timestamp: number, bpm: number, rrInterval: number): string {
+  public getArrhythmiaType(timestamp: number, bpm: number, rrInterval: number): string {
     if (rrInterval <= 0) return 'normal';
     
     const mean = this.rrHistory.length > 0 
@@ -78,7 +78,7 @@ export class ArrhythmiaDetector {
     return 'normal';
   }
   
-  reset(): void {
+  public reset(): void {
     this.rrHistory = [];
     this.lastBeatTime = 0;
   }

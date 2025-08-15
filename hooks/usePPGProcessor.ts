@@ -138,7 +138,7 @@ export function usePPGProcessor() {
           signalQuality,
         };
         
-        setCurrentSession(prev => prev ? {
+        setCurrentSession((prev: Session | null) => prev ? {
           ...prev,
           data: [...prev.data, sessionData],
         } : null);
@@ -170,7 +170,7 @@ export function usePPGProcessor() {
     setPpgWaveform([]);
   }, []);
 
-  const startSession = useCallback(() => {
+  const startSession = useCallback((): void => {
     const session: Session = {
       id: `session_${Date.now()}`,
       startTime: Date.now(),
@@ -179,9 +179,9 @@ export function usePPGProcessor() {
     setCurrentSession(session);
   }, []);
 
-  const stopSession = useCallback(() => {
+  const stopSession = useCallback((): void => {
     if (currentSession) {
-      setCurrentSession(prev => prev ? {
+      setCurrentSession((prev: Session | null) => prev ? {
         ...prev,
         endTime: Date.now(),
       } : null);

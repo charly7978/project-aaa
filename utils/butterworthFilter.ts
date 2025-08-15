@@ -1,8 +1,9 @@
+
 export class ButterworthFilter {
-  private a: number[];
-  private b: number[];
-  private x: number[];
-  private y: number[];
+  private a: number[] = [];
+  private b: number[] = [];
+  private x: number[] = [];
+  private y: number[] = [];
   
   constructor(lowCutoff: number, highCutoff: number, samplingRate: number, order: number = 4) {
     const nyquist = samplingRate / 2;
@@ -68,7 +69,7 @@ export class ButterworthFilter {
     }
   }
   
-  process(input: number): number {
+  public process(input: number): number {
     // Shift delay lines
     this.x.unshift(input);
     this.x.pop();
@@ -95,7 +96,7 @@ export class ButterworthFilter {
     return output;
   }
   
-  reset(): void {
+  public reset(): void {
     this.x.fill(0);
     this.y.fill(0);
   }
