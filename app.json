@@ -19,8 +19,14 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-web-browser",
-      "react-native-vision-camera"
+      "expo-camera",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir el acceso a la cámara para medir los signos vitales.",
+          "microphonePermission": "Permitir el acceso al micrófono para grabar audio si es necesario."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -237,16 +237,9 @@ export default function VitalSignsMonitor() {
         style={styles.camera}
         facing="back"
         flash={flashEnabled ? "torch" : "off"}
-        enableTorch={flashEnabled}
         autoFocus="on"
         type={CameraType.back}
         ratio="16:9"
-        useCamera2Api={true}
-        zoom={0}
-        whiteBalance="auto"
-        focusDepth={0}
-        onCameraReady={() => console.log('Cámara lista')}
-        onMountError={(error) => console.error('Error al montar la cámara:', error)}
       >
         {/* PPG Monitor - Full Screen Background */}
         <PPGMonitor
