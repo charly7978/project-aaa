@@ -9,7 +9,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, CameraType } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -76,52 +76,52 @@ export default function VitalSignsMonitor() {
     
     let isActive = true;
     let frameId: number;
-    let frameCount = 0;
-    const TARGET_FPS = 30;
-    const FRAME_INTERVAL = 1000 / TARGET_FPS;
-    let lastFrameTime = 0;
+    let lastProcessTime = 0;
+    const TARGET_FPS = 30; // Objetivo de frames por segundo
+    const FRAME_INTERVAL = 1000 / TARGET_FPS; // Tiempo entre frames en ms
     
-    const captureFrame = async (timestamp: number) => {
+    const processFrame = async () => {
       if (!cameraRef.current || !isActive) return;
       
       const now = Date.now();
-      const elapsed = now - lastFrameTime;
+      const timeSinceLastProcess = now - lastProcessTime;
       
-      // Limitar la tasa de frames
-      if (elapsed > FRAME_INTERVAL) {
-        lastFrameTime = now - (elapsed % FRAME_INTERVAL);
+      // Solo procesar si ha pasado el tiempo suficiente para mantener el FPS objetivo
+      if (timeSinceLastProcess >= FRAME_INTERVAL) {
+        lastProcessTime = now;
         
         try {
-          // Usar el frame actual del video
-          const frame = await cameraRef.current.takePictureAsync({
-            quality: 0.1,
+          // Usar el preview de la cámara para obtener el frame actual
+          const photo = await cameraRef.current.takePictureAsync({
+            quality: 0.1, // Calidad baja para mejor rendimiento
             base64: true,
-            skipProcessing: true,
-            isImageMirror: false,
-            exif: false
+            skipProcessing: true, // Procesamiento mínimo
+            exif: false,          // No necesitamos metadatos EXIF
+            doNotSave: true       // No guardar la foto en el almacenamiento
           });
           
-          if (frame?.base64 && isActive) {
-            const processed = await processPPGFrame(frame.base64);
-            if (processed && isActive) {
+          if (photo?.base64 && isActive) {
+            // Procesar el frame para obtener los signos vitales
+            const processed = await processPPGFrame(photo.base64);
+            if (processed) {
               setFingerDetected(processed.fingerDetected);
             }
           }
         } catch (error) {
-          console.error('Error al procesar frame de video:', error);
+          console.error('Error al procesar frame:', error);
         }
       }
       
       // Programar el siguiente frame
       if (isActive) {
-        frameId = requestAnimationFrame(captureFrame);
+        frameId = requestAnimationFrame(processFrame);
       }
     };
     
-    // Iniciar la captura de frames
-    frameId = requestAnimationFrame(captureFrame);
+    // Iniciar el procesamiento de frames
+    frameId = requestAnimationFrame(processFrame);
     
-    // Limpieza
+    // Limpieza al desmontar o detener el monitoreo
     return () => {
       isActive = false;
       if (frameId) {
@@ -239,7 +239,7 @@ export default function VitalSignsMonitor() {
         flash={flashEnabled ? "torch" : "off"}
         enableTorch={flashEnabled}
         autoFocus="on"
-        type="back"
+        type={CameraType.back}
         ratio="16:9"
         useCamera2Api={true}
         zoom={0}
