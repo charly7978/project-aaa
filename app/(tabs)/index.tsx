@@ -33,13 +33,13 @@ interface VitalSigns {
 export default function VitalSignsMonitor() {
   const [permission, requestPermission] = useCameraPermissions();
   const [isMonitoring, setIsMonitoring] = useState(false);
-  const [flashEnabled, setFlashEnabled] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [flashEnabled, setFlashEnabled] = useState<boolean>(false);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [fingerDetected, setFingerDetected] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   
-  const cameraRef = useRef<CameraView>(null);
-  const animationFrameRef = useRef<number>();
+  const cameraRef = useRef(null);
+  const animationFrameRef = useRef(null);
   
   const {
     vitalSigns,
@@ -70,48 +70,62 @@ export default function VitalSignsMonitor() {
     }
   }, [vitalSigns.bpm, soundEnabled, fingerDetected]);
 
-  // Efecto para capturar frames cuando está monitoreando
+  // Efecto para manejar el monitoreo de video
   useEffect(() => {
     if (!isMonitoring) return;
-
-    let isMounted = true;
-    let frameRequest: number;
-
-    const captureFrame = async () => {
-      if (!cameraRef.current || !isMounted) return;
-
-      try {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.1,
-          base64: true,
-          skipProcessing: true,
-          isImageMirror: false,
-          exif: false
-        });
-
-        if (photo?.base64) {
-          const processed = await processPPGFrame(photo.base64);
-          if (processed && isMounted) {
-            setFingerDetected(processed.fingerDetected);
+    
+    let isActive = true;
+    let frameId: number;
+    let frameCount = 0;
+    const TARGET_FPS = 30;
+    const FRAME_INTERVAL = 1000 / TARGET_FPS;
+    let lastFrameTime = 0;
+    
+    const captureFrame = async (timestamp: number) => {
+      if (!cameraRef.current || !isActive) return;
+      
+      const now = Date.now();
+      const elapsed = now - lastFrameTime;
+      
+      // Limitar la tasa de frames
+      if (elapsed > FRAME_INTERVAL) {
+        lastFrameTime = now - (elapsed % FRAME_INTERVAL);
+        
+        try {
+          // Usar el frame actual del video
+          const frame = await cameraRef.current.takePictureAsync({
+            quality: 0.1,
+            base64: true,
+            skipProcessing: true,
+            isImageMirror: false,
+            exif: false
+          });
+          
+          if (frame?.base64 && isActive) {
+            const processed = await processPPGFrame(frame.base64);
+            if (processed && isActive) {
+              setFingerDetected(processed.fingerDetected);
+            }
           }
+        } catch (error) {
+          console.error('Error al procesar frame de video:', error);
         }
-      } catch (error) {
-        console.error('Error al capturar frame:', error);
       }
-
-      if (isMounted) {
-        frameRequest = requestAnimationFrame(captureFrame);
+      
+      // Programar el siguiente frame
+      if (isActive) {
+        frameId = requestAnimationFrame(captureFrame);
       }
     };
-
+    
     // Iniciar la captura de frames
-    frameRequest = requestAnimationFrame(captureFrame);
-
+    frameId = requestAnimationFrame(captureFrame);
+    
     // Limpieza
     return () => {
-      isMounted = false;
-      if (frameRequest) {
-        cancelAnimationFrame(frameRequest);
+      isActive = false;
+      if (frameId) {
+        cancelAnimationFrame(frameId);
       }
     };
   }, [isMonitoring, processPPGFrame]);
@@ -224,6 +238,15 @@ export default function VitalSignsMonitor() {
         facing="back"
         flash={flashEnabled ? "torch" : "off"}
         enableTorch={flashEnabled}
+        autoFocus="on"
+        type="back"
+        ratio="16:9"
+        useCamera2Api={true}
+        zoom={0}
+        whiteBalance="auto"
+        focusDepth={0}
+        onCameraReady={() => console.log('Cámara lista')}
+        onMountError={(error) => console.error('Error al montar la cámara:', error)}
       >
         {/* PPG Monitor - Full Screen Background */}
         <PPGMonitor

@@ -91,10 +91,10 @@ export function usePPGProcessor() {
       }
       
       // Calculate vital signs
-      const bpm = processor.calculateBPM();
-      const spo2 = processor.estimateSpO2(redValue, greenValue);
-      const signalQuality = processor.calculateSignalQuality(bandpassFiltered);
-      const lastRR = processor.getLastRRInterval();
+      const bpm: number = processor.calculateBPM();
+      const spo2: number = processor.estimateSpO2(redValue, greenValue);
+      const signalQuality: number = processor.calculateSignalQuality(bandpassFiltered);
+      const lastRR: number = processor.getLastRRInterval();
       
       // Detect arrhythmia
       const isArrhythmic = arrhythmiaDetector.detectArrhythmia(timestamp, bpm, lastRR);
