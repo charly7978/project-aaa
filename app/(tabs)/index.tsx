@@ -119,8 +119,8 @@ export default function VitalSignsMonitor() {
   }, [disclaimerAccepted]);
 
   const startMonitoringProcess = useCallback(() => {
-    resetProcessor();
-    startSession();
+    (resetProcessor as () => void)();
+    (startSession as () => void)();
     setIsMonitoring(true);
     // Iniciar captura continua de frames
     const captureLoop = async () => {
