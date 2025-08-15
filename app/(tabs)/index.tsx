@@ -32,6 +32,7 @@ interface VitalSigns {
 
 export default function VitalSignsMonitor() {
   const [permission, requestPermission] = useCameraPermissions();
+  const [cameraReady, setCameraReady] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
@@ -55,10 +56,20 @@ export default function VitalSignsMonitor() {
 
   // Request camera permissions
   useEffect(() => {
-    if (!permission?.granted) {
-      requestPermission();
-    }
-  }, [permission]);
+    const getPermissions = async () => {
+      try {
+        const { status } = await requestPermission();
+        if (status !== 'granted') {
+          Alert.alert('Permiso requerido', 'Se necesita permiso para acceder a la cámara');
+        }
+      } catch (error) {
+        console.error('Error al solicitar permisos:', error);
+        Alert.alert('Error', 'No se pudo acceder a la cámara');
+      }
+    };
+    
+    getPermissions();
+  }, []);
 
   // Handle heartbeat feedback
   useEffect(() => {
@@ -227,95 +238,122 @@ export default function VitalSignsMonitor() {
     );
   }
 
+  if (!permission.granted) {
+    return (
+      <View style={styles.permissionContainer}>
+        <Ionicons name="camera" size={64} color="#9CA3AF" />
+        <Text style={styles.permissionTitle}>Permisos de Cámara Requeridos</Text>
+        <Text style={styles.permissionText}>
+          Esta aplicación necesita acceso a la cámara trasera para medir signos vitales
+        </Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+          <Text style={styles.permissionButtonText}>Conceder Permiso</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar hidden />
       
       {/* Camera View - Background */}
-      <CameraView
-        ref={cameraRef}
-        style={styles.camera}
-        facing="back"
-        flash={flashEnabled ? "torch" : "off"}
-        autoFocus="on"
-        type={CameraType.back}
-        ratio="16:9"
-      >
-        {/* PPG Monitor - Full Screen Background */}
-        <PPGMonitor
-          waveformData={ppgWaveform}
-          isArrhythmic={vitalSigns.isArrhythmic}
-          style={styles.monitor}
+      <View style={{ flex: 1, backgroundColor: 'black' }}>
+        <CameraView
+          ref={cameraRef}
+          style={{ flex: 1 }}
+          facing="back"
+          flash={flashEnabled ? "torch" : "off"}
+          autoFocus="on"
+          type={CameraType.back}
+          onCameraReady={() => {
+            console.log('Cámara lista');
+            setCameraReady(true);
+          }}
+          onMountError={(error) => {
+            console.error('Error al montar la cámara:', error);
+            Alert.alert('Error', 'No se pudo iniciar la cámara');
+          }}
         />
-
-        {/* Top Overlays */}
-        <View style={styles.topOverlays}>
-          {/* Status Indicator */}
-          <View style={styles.statusContainer}>
-            <SignalQualityIndicator
-              quality={vitalSigns.signalQuality}
-              fingerDetected={fingerDetected}
-              isMonitoring={isMonitoring}
-            />
-          </View>
-
-          {/* Flash Control */}
+        
+        {/* Controles simples */}
+        <View style={{
+          position: 'absolute',
+          bottom: 40,
+          left: 0,
+          right: 0,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+        }}>
           <TouchableOpacity
-            style={[styles.controlButton, flashEnabled && styles.controlButtonActive]}
             onPress={toggleFlash}
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              padding: 15,
+              borderRadius: 30,
+              marginHorizontal: 10
+            }}
           >
             <Ionicons
               name={flashEnabled ? "flash" : "flash-off"}
               size={24}
-              color={flashEnabled ? "#FCD34D" : "#9CA3AF"}
+              color="white"
             />
           </TouchableOpacity>
-        </View>
-
-        {/* Vital Signs Overlay - Bottom Center */}
-        <VitalSignsOverlay
-          bpm={vitalSigns.bpm}
-          spo2={vitalSigns.spo2}
-          signalQuality={vitalSigns.signalQuality}
-          lastRR={vitalSigns.lastRR}
-          isArrhythmic={vitalSigns.isArrhythmic}
-        />
-
-        {/* Bottom Controls */}
-        <View style={styles.bottomControls}>
-          {/* Start/Stop Button */}
+          
           <TouchableOpacity
-            style={[styles.mainButton, isMonitoring && styles.stopButton]}
             onPress={isMonitoring ? handleStopMonitoring : handleStartMonitoring}
+            style={{
+              backgroundColor: isMonitoring ? '#EF4444' : '#10B981',
+              padding: 20,
+              borderRadius: 50,
+              marginHorizontal: 10
+            }}
           >
             <Ionicons
               name={isMonitoring ? "stop" : "play"}
               size={32}
               color="white"
             />
-            <Text style={styles.mainButtonText}>
-              {isMonitoring ? "Parar" : "Iniciar"}
-            </Text>
           </TouchableOpacity>
-
-          {/* Export Button */}
-          <TouchableOpacity style={styles.actionButton} onPress={handleExportSession}>
-            <Ionicons name="download" size={20} color="#3B82F6" />
-          </TouchableOpacity>
-
-          {/* Sound Toggle */}
+          
           <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setSoundEnabled((prev: boolean) => !prev)}
+            onPress={() => setSoundEnabled(prev => !prev)}
+            style={{
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              padding: 15,
+              borderRadius: 30,
+              marginHorizontal: 10
+            }}
           >
             <Ionicons
               name={soundEnabled ? "volume-high" : "volume-mute"}
-              size={20}
-              color={soundEnabled ? "#10B981" : "#9CA3AF"}
+              size={24}
+              color="white"
             />
           </TouchableOpacity>
         </View>
-      </CameraView>
+        
+        {/* Indicador de estado */}
+        <View style={{
+          position: 'absolute',
+          top: 60,
+          left: 0,
+          right: 0,
+          alignItems: 'center',
+          padding: 10,
+          backgroundColor: 'rgba(0,0,0,0.5)'
+        }}>
+          <Text style={{ color: 'white', fontSize: 18 }}>
+            {isMonitoring ? 'Monitoreando...' : 'Listo para comenzar'}
+          </Text>
+          <Text style={{ color: 'white', marginTop: 5 }}>
+            Frecuencia cardíaca: {vitalSigns.bpm || '--'} BPM
+          </Text>
+        </View>
+      </View>
     </View>
   );
 }
