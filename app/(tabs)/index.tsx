@@ -70,31 +70,50 @@ export default function VitalSignsMonitor() {
     }
   }, [vitalSigns.bpm, soundEnabled, fingerDetected]);
 
-  // Función para procesar frames de video continuamente
-  const processVideoFrame = useCallback(async () => {
+  // Efecto para capturar frames cuando está monitoreando
+  useEffect(() => {
     if (!isMonitoring) return;
 
-    try {
-      // Usar takePictureAsync con configuración optimizada para video
-      if (cameraRef.current) {
+    let isMounted = true;
+    let frameRequest: number;
+
+    const captureFrame = async () => {
+      if (!cameraRef.current || !isMounted) return;
+
+      try {
         const photo = await cameraRef.current.takePictureAsync({
           quality: 0.1,
           base64: true,
           skipProcessing: true,
           isImageMirror: false,
-          fastMode: true, // Modo rápido para captura continua
+          exif: false
         });
 
-        if (photo && photo.base64) {
+        if (photo?.base64) {
           const processed = await processPPGFrame(photo.base64);
-          if (processed) {
+          if (processed && isMounted) {
             setFingerDetected(processed.fingerDetected);
           }
         }
+      } catch (error) {
+        console.error('Error al capturar frame:', error);
       }
-    } catch (error) {
-      console.error('Frame processing error:', error);
-    }
+
+      if (isMounted) {
+        frameRequest = requestAnimationFrame(captureFrame);
+      }
+    };
+
+    // Iniciar la captura de frames
+    frameRequest = requestAnimationFrame(captureFrame);
+
+    // Limpieza
+    return () => {
+      isMounted = false;
+      if (frameRequest) {
+        cancelAnimationFrame(frameRequest);
+      }
+    };
   }, [isMonitoring, processPPGFrame]);
 
   const handleStartMonitoring = useCallback(() => {
@@ -122,16 +141,7 @@ export default function VitalSignsMonitor() {
     resetProcessor();
     startSession();
     setIsMonitoring(true);
-    // Iniciar captura continua de frames
-    const captureLoop = async () => {
-      if (isMonitoring && cameraRef.current) {
-        await processVideoFrame();
-        // Programar siguiente captura (20 FPS para mejor rendimiento)
-        setTimeout(captureLoop, 50);
-      }
-    };
-    captureLoop();
-  }, [resetProcessor, startSession, isMonitoring, processVideoFrame]);
+  }, [resetProcessor, startSession]);
 
   const handleStopMonitoring = useCallback(() => {
     setIsMonitoring(false);
@@ -212,10 +222,8 @@ export default function VitalSignsMonitor() {
         ref={cameraRef}
         style={styles.camera}
         facing="back"
-        flash={flashEnabled ? "on" : "off"}
+        flash={flashEnabled ? "torch" : "off"}
         enableTorch={flashEnabled}
-        mode="video" // Importante: establecer modo video para captura continua
-        // onFrameProcessed no es confiable en expo-camera, usamos nuestro propio bucle
       >
         {/* PPG Monitor - Full Screen Background */}
         <PPGMonitor
